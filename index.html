@@ -839,7 +839,6 @@ async function callClaude(imgB64, imgMime, text) {
             : `Analyse the ${L.name} text and relevant objects visible in this image.`
     });
 
-    const L = LANGS[S.lang] || LANGS['de-CH'];
     const res = await fetch('https://snowy-mode-9d02.rjbarbhaiya.workers.dev/v1/messages', {
         method: 'POST',
         headers: {
