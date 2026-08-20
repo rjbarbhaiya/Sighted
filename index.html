@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#C8102E">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SwissFlash">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23C8102E'/%3E%3Crect x='72' y='28' width='36' height='124' rx='8' fill='white'/%3E%3Crect x='28' y='72' width='124' height='36' rx='8' fill='white'/%3E%3C/svg%3E">
     <title>SwissFlash — German from Life</title>
     <style>
         :root {
@@ -302,6 +307,40 @@
         }
         .del-btn:hover { color: #DC2626; }
 
+        /* ── Language selector ── */
+        .lang-grid {
+            display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin-top: 4px;
+        }
+        .lang-opt {
+            padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+            background: var(--bg); cursor: pointer; text-align: left;
+            font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+        }
+        .lang-opt:hover { border-color: var(--primary); }
+        .lang-opt.selected { border-color: var(--primary); background: #FFF5F7; }
+        .lang-opt .lf { font-size: 20px; }
+        .lang-opt .ln { font-size: 13px; font-weight: 700; color: var(--text); display: block; }
+        .lang-opt .lr { font-size: 11px; color: var(--muted); }
+
+        /* ── Deck language filter ── */
+        .deck-filter {
+            display: flex; gap: 8px; overflow-x: auto; margin-bottom: 20px;
+            scrollbar-width: none; padding-bottom: 2px;
+        }
+        .deck-filter::-webkit-scrollbar { display: none; }
+        .df-chip {
+            padding: 6px 14px; border: 1.5px solid var(--border); border-radius: 20px;
+            background: var(--surface); cursor: pointer; white-space: nowrap;
+            font-size: 13px; font-weight: 600; color: var(--muted);
+            transition: all 0.15s; font-family: inherit; flex-shrink: 0;
+        }
+        .df-chip:hover { border-color: var(--primary); color: var(--text); }
+        .df-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+        .lang-badge {
+            font-size: 11px; padding: 1px 7px; border-radius: 20px;
+            background: var(--bg); color: var(--muted); font-weight: 600; margin-left: 4px;
+        }
+
         /* ── Settings modal ── */
         .overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.4);
@@ -327,12 +366,36 @@
         .field .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 
+        /* Mobile camera buttons */
+        .cam-btns {
+            display: none;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .cam-btn {
+            flex: 1; padding: 16px 12px;
+            border: 1.5px solid var(--border); border-radius: 14px;
+            background: var(--surface); cursor: pointer;
+            text-align: center; font-family: inherit;
+            transition: all 0.15s; position: relative; overflow: hidden;
+        }
+        .cam-btn input[type="file"] {
+            position: absolute; inset: 0; opacity: 0;
+            cursor: pointer; width: 100%; height: 100%;
+        }
+        .cam-btn:hover, .cam-btn:active { border-color: var(--primary); background: #FFF5F7; }
+        .cam-btn .cam-icon { font-size: 26px; display: block; margin-bottom: 5px; }
+        .cam-btn .cam-label { font-size: 13px; font-weight: 600; color: var(--text); display: block; }
+        .cam-btn .cam-sub { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+
         @media (max-width: 480px) {
             header { padding: 0 12px; }
-            main { padding: 16px 12px; }
+            main { padding: 16px 12px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
             .nav-btn { padding: 6px 10px; font-size: 13px; }
             .ratings { grid-template-columns: repeat(2,1fr); }
             .front-word { font-size: 36px; }
+            .cam-btns { display: flex; }
+            .upload-zone { display: none; } /* hide desktop drop zone on mobile */
         }
     </style>
 </head>
@@ -346,7 +409,7 @@
                 <rect x="2" y="8" width="16" height="4" rx="1"/>
             </svg>
         </div>
-        SwissFlash
+        SwissFlash <span id="header-flag" style="font-size:16px;margin-left:2px">🇨🇭</span>
     </div>
     <nav>
         <button class="nav-btn active" id="nav-capture" onclick="go('capture')">📷 Capture</button>
@@ -361,18 +424,34 @@
     <div class="view active" id="view-capture">
 
         <div id="cap-form">
+
+            <!-- Mobile: two big tap targets -->
+            <div class="cam-btns" id="cam-btns">
+                <div class="cam-btn">
+                    <input type="file" accept="image/*" capture="environment" onchange="onFileSelect(event)">
+                    <span class="cam-icon">📷</span>
+                    <span class="cam-label">Take Photo</span>
+                    <span class="cam-sub">Open camera</span>
+                </div>
+                <div class="cam-btn">
+                    <input type="file" accept="image/*" onchange="onFileSelect(event)">
+                    <span class="cam-icon">🖼️</span>
+                    <span class="cam-label">Photo Library</span>
+                    <span class="cam-sub">Pick existing photo</span>
+                </div>
+            </div>
+
             <div class="upload-zone" id="drop-zone"
                  ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
                 <input type="file" accept="image/*" id="file-in" onchange="onFileSelect(event)">
                 <div class="upload-icon" id="up-icon">📷</div>
                 <div class="upload-title" id="up-title">Drop a photo or tap to upload</div>
-                <div class="upload-sub">Photograph signs, labels, menus, receipts — anything in German</div>
+                <div class="upload-sub" id="up-sub">Photograph signs, labels, menus, receipts — anything in German</div>
             </div>
 
             <div class="divider">or type it out</div>
 
-            <textarea id="txt-in"
-                placeholder='Type German text you saw — e.g. "Ausgang", "Achtung Glatteis", or a whole sentence'></textarea>
+            <textarea id="txt-in" placeholder='Type text you saw — e.g. a word, phrase, or sentence'></textarea>
 
             <div class="alert alert-err" id="cap-err"></div>
 
@@ -383,7 +462,7 @@
 
         <div class="loading" id="cap-loading" style="display:none">
             <div class="spinner"></div>
-            <p>Analysing for Swiss-relevant vocabulary…</p>
+            <p id="loading-txt">Analysing for relevant vocabulary…</p>
         </div>
 
         <div id="cap-results" style="display:none">
@@ -434,6 +513,11 @@
         </div>
 
         <div class="field">
+            <label>Learning Language</label>
+            <div class="lang-grid" id="lang-grid"></div>
+        </div>
+
+        <div class="field">
             <label>Claude API Key</label>
             <input type="password" id="key-in" placeholder="sk-ant-...">
         </div>
@@ -441,14 +525,14 @@
         <div class="field">
             <label>Model</label>
             <input type="text" id="model-in" placeholder="claude-3-5-haiku-20241022">
-            <div class="hint">Haiku is fast &amp; cheap. Sonnet gives slightly better extraction. Default: claude-3-5-haiku-20241022</div>
+            <div class="hint">Haiku is fast &amp; cheap. Sonnet gives slightly better extraction.</div>
         </div>
 
         <div class="field">
             <label>Relevance threshold <span id="thresh-val" style="color:var(--primary)">6</span>/10</label>
             <input type="range" id="thresh-in" min="2" max="9" value="6" style="width:100%;accent-color:var(--primary)"
                    oninput="document.getElementById('thresh-val').textContent=this.value">
-            <div class="hint">Higher = stricter filter. frequency + Swiss relevance must exceed this to show a card.</div>
+            <div class="hint">Higher = stricter filter. frequency + local relevance must exceed this to show a card.</div>
         </div>
 
         <div class="modal-actions">
@@ -460,22 +544,162 @@
 
 <script>
 /* ═══════════════════════════════════════════════════
+   PIN  — change this to whatever you want
+═══════════════════════════════════════════════════ */
+const APP_PIN = '8799';
+
+(function() {
+    if (localStorage.getItem('sf.auth') === APP_PIN) return; // already unlocked on this device
+    // Build PIN overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'pin-overlay';
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:#F5F5F0;z-index:9999;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+        padding:24px;
+    `;
+    overlay.innerHTML = `
+        <div style="text-align:center;max-width:320px;width:100%">
+            <div style="width:60px;height:60px;background:#C8102E;border-radius:14px;
+                        display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+                <svg viewBox="0 0 20 20" width="28" height="28" fill="white">
+                    <rect x="8" y="2" width="4" height="16" rx="1"/>
+                    <rect x="2" y="8" width="16" height="4" rx="1"/>
+                </svg>
+            </div>
+            <h1 style="font-size:22px;font-weight:800;color:#1A1A1A;margin-bottom:6px">SwissFlash</h1>
+            <p style="font-size:14px;color:#6B7280;margin-bottom:28px">Enter your PIN to continue</p>
+
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="pin-pad">
+                ${[1,2,3,4,5,6,7,8,9,'','0','⌫'].map(k => `
+                    <button data-key="${k}"
+                        style="padding:18px;border:1.5px solid #E5E7EB;border-radius:12px;
+                               background:#fff;font-size:20px;font-weight:600;cursor:pointer;
+                               color:#1A1A1A;transition:all 0.1s;font-family:inherit;
+                               ${k===''?'visibility:hidden':''}"
+                        ${k===''?'disabled':''}>
+                        ${k}
+                    </button>`).join('')}
+            </div>
+
+            <div id="pin-dots" style="display:flex;gap:10px;justify-content:center;margin-bottom:16px">
+                ${[0,1,2,3].map(() => `
+                    <div style="width:12px;height:12px;border-radius:50%;background:#E5E7EB;transition:background 0.15s"></div>
+                `).join('')}
+            </div>
+
+            <p id="pin-err" style="font-size:13px;color:#DC2626;min-height:18px;transition:opacity 0.2s"></p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    let entered = '';
+    const dots = overlay.querySelectorAll('#pin-dots div');
+
+    function updateDots() {
+        dots.forEach((d, i) => {
+            d.style.background = i < entered.length ? '#C8102E' : '#E5E7EB';
+        });
+    }
+
+    function shake() {
+        const pad = overlay.querySelector('#pin-pad');
+        pad.style.transform = 'translateX(-8px)';
+        setTimeout(() => pad.style.transform = 'translateX(8px)', 80);
+        setTimeout(() => pad.style.transform = 'translateX(-6px)', 160);
+        setTimeout(() => pad.style.transform = 'translateX(0)', 240);
+    }
+
+    function tryPin() {
+        if (entered === APP_PIN) {
+            localStorage.setItem('sf.auth', APP_PIN);
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.3s';
+            setTimeout(() => overlay.remove(), 300);
+        } else {
+            overlay.querySelector('#pin-err').textContent = 'Incorrect PIN — try again';
+            shake();
+            entered = '';
+            updateDots();
+        }
+    }
+
+    overlay.querySelector('#pin-pad').addEventListener('click', e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const key = btn.dataset.key;
+        if (key === '⌫') {
+            entered = entered.slice(0, -1);
+            overlay.querySelector('#pin-err').textContent = '';
+        } else if (key && entered.length < 4) {
+            entered += key;
+            if (entered.length === 4) setTimeout(tryPin, 80);
+        }
+        updateDots();
+        // brief press effect
+        btn.style.background = '#F5F5F0';
+        setTimeout(() => btn.style.background = '#fff', 120);
+    });
+
+    // keyboard support
+    document.addEventListener('keydown', e => {
+        if (!document.getElementById('pin-overlay')) return;
+        if (e.key >= '0' && e.key <= '9' && entered.length < 4) {
+            entered += e.key;
+            updateDots();
+            if (entered.length === 4) setTimeout(tryPin, 80);
+        }
+        if (e.key === 'Backspace') { entered = entered.slice(0,-1); updateDots(); }
+    });
+})();
+
+/* ═══════════════════════════════════════════════════
+   LANGUAGE CONFIG
+═══════════════════════════════════════════════════ */
+const LANGS = {
+    'de-CH': { name:'German',     flag:'🇨🇭', region:'Switzerland',
+               context:'daily life in Switzerland (Migros, Coop, SBB trains/trams, Gemeinde, Apotheke, street signs, food labels, recycling, post office)' },
+    'de-DE': { name:'German',     flag:'🇩🇪', region:'Germany',
+               context:'daily life in Germany (supermarkt, U-Bahn, Apotheke, Amt, food labels, street signs)' },
+    'es-ES': { name:'Spanish',    flag:'🇪🇸', region:'Spain',
+               context:'daily life in Spain (supermercado, metro, farmacia, ayuntamiento, restaurantes, señales)' },
+    'es-MX': { name:'Spanish',    flag:'🇲🇽', region:'Mexico',
+               context:'daily life in Mexico (tienda, mercado, farmacia, transporte, restaurantes)' },
+    'fr-FR': { name:'French',     flag:'🇫🇷', region:'France',
+               context:'daily life in France (supermarché, métro, pharmacie, mairie, restaurants, panneaux)' },
+    'it-IT': { name:'Italian',    flag:'🇮🇹', region:'Italy',
+               context:'daily life in Italy (supermercato, metro, farmacia, comune, ristoranti, segnali)' },
+    'pt-BR': { name:'Portuguese', flag:'🇧🇷', region:'Brazil',
+               context:'daily life in Brazil (supermercado, metrô, farmácia, prefeitura, restaurantes)' },
+    'ja-JP': { name:'Japanese',   flag:'🇯🇵', region:'Japan',
+               context:'daily life in Japan (convenience stores, trains, signs, restaurants, vending machines)' },
+};
+
+/* ═══════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════ */
 const S = {
     apiKey:    localStorage.getItem('sf.key')   || '',
     model:     localStorage.getItem('sf.model') || 'claude-3-5-haiku-20241022',
     threshold: parseInt(localStorage.getItem('sf.thresh') || '6', 10),
+    lang:      localStorage.getItem('sf.lang')  || 'de-CH',
     cards:     JSON.parse(localStorage.getItem('sf.cards') || '[]'),
     view:      'capture',
     pending:   [],
     imgB64:    null,
     imgMime:   null,
+    deckLang:  null, // null = show all in deck
     // study session
     queue:     [],
     qi:        0,
     flipped:   false,
 };
+
+// Helpers for backward-compatible card field access
+function cardWord(c)      { return c.word      || c.german     || ''; }
+function cardExTarget(c)  { return c.example_target || c.example_de || ''; }
+function cardLang(c)      { return c.lang || 'de-CH'; }
 
 function persist() { localStorage.setItem('sf.cards', JSON.stringify(S.cards)); }
 
@@ -495,7 +719,39 @@ function go(v) {
 /* ═══════════════════════════════════════════════════
    SETTINGS
 ═══════════════════════════════════════════════════ */
+let settingsLang = S.lang; // tracks selection inside modal before saving
+
+function buildLangGrid() {
+    const grid = document.getElementById('lang-grid');
+    grid.innerHTML = Object.entries(LANGS).map(([key, L]) => `
+        <button class="lang-opt${key === settingsLang ? ' selected' : ''}"
+                onclick="selectLang('${key}')" data-lang="${key}">
+            <span class="lf">${L.flag}</span>
+            <span><span class="ln">${L.name}</span><span class="lr">${L.region}</span></span>
+        </button>`).join('');
+}
+
+function selectLang(key) {
+    settingsLang = key;
+    document.querySelectorAll('.lang-opt').forEach(el => {
+        el.classList.toggle('selected', el.dataset.lang === key);
+    });
+}
+
+function updateLangUI() {
+    const L = LANGS[S.lang] || LANGS['de-CH'];
+    document.getElementById('header-flag').textContent = L.flag;
+    document.getElementById('up-sub').textContent =
+        `Photograph signs, labels, menus, receipts — anything in ${L.name}`;
+    document.getElementById('txt-in').placeholder =
+        `Type ${L.name} text you saw — a word, phrase, or sentence`;
+    document.getElementById('loading-txt').textContent =
+        `Analysing for ${L.region}-relevant vocabulary…`;
+}
+
 function openSettings() {
+    settingsLang = S.lang;
+    buildLangGrid();
     document.getElementById('key-in').value   = S.apiKey;
     document.getElementById('model-in').value = S.model;
     const t = document.getElementById('thresh-in');
@@ -505,14 +761,18 @@ function openSettings() {
 }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('show'); }
 function saveSettings() {
+    const langChanged = settingsLang !== S.lang;
+    S.lang      = settingsLang;
     S.apiKey    = document.getElementById('key-in').value.trim();
     S.model     = document.getElementById('model-in').value.trim() || 'claude-3-5-haiku-20241022';
     S.threshold = parseInt(document.getElementById('thresh-in').value, 10);
+    localStorage.setItem('sf.lang',   S.lang);
     localStorage.setItem('sf.key',    S.apiKey);
     localStorage.setItem('sf.model',  S.model);
     localStorage.setItem('sf.thresh', S.threshold);
+    updateLangUI();
     closeSettings();
-    flash('cap-ok', 'Settings saved!');
+    flash('cap-ok', 'Settings saved!' + (langChanged ? ' Switched to ' + LANGS[S.lang].name + ' ' + LANGS[S.lang].flag : ''));
 }
 
 /* ═══════════════════════════════════════════════════
@@ -534,16 +794,26 @@ function loadImg(file) {
         const url = ev.target.result;
         S.imgMime = file.type;
         S.imgB64  = url.split(',')[1];
-        // show preview above upload zone
+        // show preview — insert before whichever element is visible first
         const old = document.querySelector('.preview-img');
         if (old) old.remove();
         const img = document.createElement('img');
         img.className = 'preview-img';
         img.src = url;
-        const zone = document.getElementById('drop-zone');
-        zone.parentNode.insertBefore(img, zone);
+        // on mobile cam-btns is the visible anchor; on desktop it's the drop zone
+        const anchor = document.getElementById('cam-btns').offsetParent !== null
+            ? document.getElementById('cam-btns')
+            : document.getElementById('drop-zone');
+        anchor.parentNode.insertBefore(img, anchor);
+        // update desktop drop zone labels too
         document.getElementById('up-icon').textContent  = '🔄';
         document.getElementById('up-title').textContent = 'Change photo';
+        // update mobile cam buttons to indicate photo loaded
+        const camBtns = document.querySelectorAll('.cam-btn .cam-label');
+        if (camBtns.length) {
+            camBtns[0].textContent = '🔄 Retake';
+            camBtns[1].textContent = '🔄 Change';
+        }
     };
     reader.readAsDataURL(file);
 }
@@ -561,14 +831,16 @@ document.addEventListener('paste', e => {
 async function callClaude(imgB64, imgMime, text) {
     const content = [];
     if (imgB64) content.push({ type:'image', source:{ type:'base64', media_type: imgMime, data: imgB64 } });
+    const L = LANGS[S.lang] || LANGS['de-CH'];
     content.push({
         type: 'text',
         text: text
-            ? `Analyse this German text for vocabulary: "${text}"`
-            : 'Analyse the German text and relevant objects visible in this image.'
+            ? `Analyse this ${L.name} text for vocabulary: "${text}"`
+            : `Analyse the ${L.name} text and relevant objects visible in this image.`
     });
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const L = LANGS[S.lang] || LANGS['de-CH'];
+    const res = await fetch('https://snowy-mode-9d02.rjbarbhaiya.workers.dev/v1/messages', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -579,18 +851,18 @@ async function callClaude(imgB64, imgMime, text) {
         body: JSON.stringify({
             model: S.model,
             max_tokens: 2048,
-            system: `You are a German vocabulary assistant for an English speaker from California living in Switzerland.
+            system: `You are a ${L.name} vocabulary assistant for an English speaker living in ${L.region}.
 
-Extract useful German words or phrases from the provided image or text.
+Extract useful ${L.name} words or phrases from the provided image or text.
 Score each item:
-  frequency:       How common in everyday German? 1=very rare, 5=extremely common (e.g. "danke", "bitte")
-  swiss_relevance: How useful for daily life in Switzerland? 1=not Swiss-specific, 5=essential (think: Migros, Coop, SBB trains/trams, Gemeinde, Apotheke, street signs, food labels, recycling, post office, restaurants, etc.)
+  frequency:        How common in everyday ${L.name}? 1=very rare, 5=extremely common
+  local_relevance:  How useful for ${L.context}? 1=not useful, 5=essential
 
-ONLY include items where (frequency + swiss_relevance) >= ${S.threshold}.
-Skip: proper nouns, brand names, place names, items with no learnable German vocabulary.
+ONLY include items where (frequency + local_relevance) >= ${S.threshold}.
+Skip: proper nouns, brand names, place names, items with no learnable vocabulary.
 
 Return ONLY a raw JSON array — no markdown, no explanation — with this exact shape:
-[{"german":"…","english":"…","frequency":4,"swiss_relevance":3,"example_de":"Ein Satz auf Deutsch.","example_en":"The English version.","context":"e.g. seen on tram doors"}]
+[{"word":"…","english":"…","frequency":4,"local_relevance":3,"example_target":"A sentence in ${L.name}.","example_en":"The English version.","context":"e.g. seen on tram doors"}]
 
 If nothing qualifies, return [].`,
             messages: [{ role:'user', content }]
@@ -644,20 +916,24 @@ function showResults(cards) {
         return;
     }
 
+    const L = LANGS[S.lang] || LANGS['de-CH'];
     cards.forEach((c, i) => {
         const d = document.createElement('div');
         d.className = 'p-card on';
         d.id = `pc${i}`;
         d.onclick = () => togglePending(i);
+        const word = c.word || c.german || '';
+        const exTarget = c.example_target || c.example_de || '';
+        const relevance = c.local_relevance || c.swiss_relevance || 0;
         d.innerHTML = `
             <div class="checkbox on" id="cb${i}">✓</div>
             <div style="flex:1">
-                <div class="p-word">${esc(c.german)}</div>
+                <div class="p-word">${esc(word)}</div>
                 <div class="p-eng">${esc(c.english)}</div>
-                <div class="p-ex">„${esc(c.example_de)}"<span>${esc(c.example_en)}</span></div>
+                <div class="p-ex">„${esc(exTarget)}"<span>${esc(c.example_en)}</span></div>
                 <div class="tags">
                     <span class="tag tag-f">Freq ${c.frequency}/5</span>
-                    <span class="tag tag-s">🇨🇭 ${c.swiss_relevance}/5</span>
+                    <span class="tag tag-s">${L.flag} ${relevance}/5</span>
                     ${c.context ? `<span class="tag tag-c">${esc(c.context)}</span>` : ''}
                 </div>
             </div>`;
@@ -679,16 +955,22 @@ function addSelected() {
 
     let added = 0;
     toAdd.forEach(c => {
-        if (!S.cards.some(x => x.german.toLowerCase() === c.german.toLowerCase())) {
+        const word = c.word || c.german || '';
+        const dupExists = S.cards.some(x =>
+            cardLang(x) === S.lang &&
+            cardWord(x).toLowerCase() === word.toLowerCase()
+        );
+        if (!dupExists) {
             S.cards.push({
                 id:             Date.now() + Math.random(),
-                german:         c.german,
+                lang:           S.lang,
+                word:           word,
                 english:        c.english,
-                example_de:     c.example_de,
+                example_target: c.example_target || c.example_de || '',
                 example_en:     c.example_en,
                 context:        c.context || '',
                 frequency:      c.frequency,
-                swiss_relevance: c.swiss_relevance,
+                local_relevance: c.local_relevance || c.swiss_relevance || 0,
                 interval:       0,
                 easeFactor:     2.5,
                 repetitions:    0,
@@ -721,6 +1003,9 @@ function resetCapture() {
     if (prev) prev.remove();
     document.getElementById('up-icon').textContent  = '📷';
     document.getElementById('up-title').textContent = 'Drop a photo or tap to upload';
+    const camLabels = document.querySelectorAll('.cam-btn .cam-label');
+    if (camLabels[0]) camLabels[0].textContent = 'Take Photo';
+    if (camLabels[1]) camLabels[1].textContent = 'Photo Library';
 }
 
 /* ═══════════════════════════════════════════════════
@@ -728,7 +1013,7 @@ function resetCapture() {
 ═══════════════════════════════════════════════════ */
 function getDue() {
     const now = new Date();
-    return S.cards.filter(c => new Date(c.dueDate) <= now);
+    return S.cards.filter(c => cardLang(c) === S.lang && new Date(c.dueDate) <= now);
 }
 
 function nextReview(card, r) {
@@ -752,22 +1037,24 @@ function ivLabel(card, r) {
 ═══════════════════════════════════════════════════ */
 function renderStudy() {
     const el = document.getElementById('study-content');
-    if (!S.cards.length) {
+    const L  = LANGS[S.lang] || LANGS['de-CH'];
+    const langCards = S.cards.filter(c => cardLang(c) === S.lang);
+    if (!langCards.length) {
         el.innerHTML = `<div class="empty">
-            <div class="emoji">🇨🇭</div>
-            <h3>No cards yet</h3>
-            <p>Capture some German vocabulary from your surroundings to get started.</p>
+            <div class="emoji">${L.flag}</div>
+            <h3>No ${L.name} cards yet</h3>
+            <p>Capture some ${L.name} vocabulary from your surroundings to get started.</p>
             <button class="btn btn-primary" onclick="go('capture')" style="display:inline-flex;width:auto">Go to Capture</button>
         </div>`; return;
     }
     const due = getDue();
     if (!due.length) {
-        const next = S.cards.reduce((a,b) => new Date(a.dueDate)<new Date(b.dueDate)?a:b);
+        const next = langCards.reduce((a,b) => new Date(a.dueDate)<new Date(b.dueDate)?a:b);
         const hrs  = Math.ceil((new Date(next.dueDate)-new Date()) / 36e5);
         el.innerHTML = `<div class="empty">
             <div class="emoji">✅</div>
             <h3>All caught up!</h3>
-            <p>Next review in ${hrs<24?hrs+' hours':Math.ceil(hrs/24)+' days'}.</p>
+            <p>Next ${L.name} review in ${hrs<24?hrs+' hours':Math.ceil(hrs/24)+' days'}.</p>
             <button class="btn btn-primary" onclick="go('capture')" style="display:inline-flex;width:auto">Add more cards</button>
         </div>`; return;
     }
@@ -800,13 +1087,13 @@ function drawCard() {
         <div class="fc-wrap">
             <div class="fc${S.flipped?' flipped':''}" id="fc" onclick="flip()">
                 <div class="face front">
-                    <div class="front-word">${esc(c.german)}</div>
+                    <div class="front-word">${esc(cardWord(c))}</div>
                     ${c.context?`<div class="front-ctx">📍 ${esc(c.context)}</div>`:''}
                     <div class="front-hint">tap to reveal →</div>
                 </div>
                 <div class="face back">
                     <div class="back-trans">${esc(c.english)}</div>
-                    <div class="back-ex">„${esc(c.example_de)}"<span>${esc(c.example_en)}</span></div>
+                    <div class="back-ex">„${esc(cardExTarget(c))}"<span>${esc(c.example_en)}</span></div>
                 </div>
             </div>
         </div>
@@ -841,33 +1128,66 @@ function rate(r) {
    DECK VIEW
 ═══════════════════════════════════════════════════ */
 function renderDeck() {
-    const el  = document.getElementById('deck-content');
-    const tot = S.cards.length;
-    const due = getDue().length;
-    const rot = S.cards.filter(c => c.repetitions > 0).length;
+    const el = document.getElementById('deck-content');
 
-    let html = `<div class="stats-grid">
+    // Build list of languages that have cards
+    const langsWithCards = [...new Set(S.cards.map(c => cardLang(c)))];
+    const activeDeckLang = S.deckLang || S.lang;
+
+    // Filter cards for display
+    const visibleCards = S.deckLang === 'all'
+        ? S.cards
+        : S.cards.filter(c => cardLang(c) === activeDeckLang);
+
+    const now = new Date();
+    const tot = visibleCards.length;
+    const due = visibleCards.filter(c => new Date(c.dueDate) <= now).length;
+    const rot = visibleCards.filter(c => c.repetitions > 0).length;
+
+    // Language filter chips
+    const chips = langsWithCards.length > 1 ? `
+        <div class="deck-filter">
+            ${langsWithCards.map(key => {
+                const L = LANGS[key] || { flag: '🌐', name: key };
+                const cnt = S.cards.filter(c => cardLang(c) === key).length;
+                const isActive = (S.deckLang === 'all' ? false : (S.deckLang || S.lang) === key);
+                return `<button class="df-chip${isActive?' active':''}" onclick="filterDeck('${key}')">
+                    ${L.flag} ${L.name} <span class="lang-badge">${cnt}</span>
+                </button>`;
+            }).join('')}
+            <button class="df-chip${S.deckLang==='all'?' active':''}" onclick="filterDeck('all')">
+                All <span class="lang-badge">${S.cards.length}</span>
+            </button>
+        </div>` : '';
+
+    let html = chips + `<div class="stats-grid">
         <div class="stat"><div class="stat-n">${tot}</div><div class="stat-l">Total cards</div></div>
         <div class="stat"><div class="stat-n">${due}</div><div class="stat-l">Due today</div></div>
         <div class="stat"><div class="stat-n">${rot}</div><div class="stat-l">In rotation</div></div>
     </div>`;
 
-    if (!tot) { html += `<p style="text-align:center;color:var(--muted);padding:40px 0">No cards yet — go capture some vocabulary!</p>`; }
-    else {
-        html += `<div class="deck-list">` + S.cards.map(c => {
-            const isDue = new Date(c.dueDate) <= new Date();
+    if (!tot) {
+        html += `<p style="text-align:center;color:var(--muted);padding:40px 0">No cards here yet — go capture some vocabulary!</p>`;
+    } else {
+        html += `<div class="deck-list">` + visibleCards.map(c => {
+            const isDue = new Date(c.dueDate) <= now;
+            const L = LANGS[cardLang(c)];
+            const showFlag = S.deckLang === 'all' && langsWithCards.length > 1;
             return `<div class="d-item">
-                <div><div class="d-de">${esc(c.german)}</div><div class="d-en">${esc(c.english)}</div></div>
+                <div><div class="d-de">${showFlag ? L.flag + ' ' : ''}${esc(cardWord(c))}</div><div class="d-en">${esc(c.english)}</div></div>
                 <div style="display:flex;align-items:center;gap:6px">
-                    ${isDue
-                        ? `<span class="d-due">Due</span>`
-                        : `<span class="d-int">${c.interval}d</span>`}
+                    ${isDue ? `<span class="d-due">Due</span>` : `<span class="d-int">${c.interval}d</span>`}
                     <button class="del-btn" onclick="delCard('${c.id}')" title="Delete">✕</button>
                 </div>
             </div>`;
         }).join('') + `</div>`;
     }
     el.innerHTML = html;
+}
+
+function filterDeck(lang) {
+    S.deckLang = lang;
+    renderDeck();
 }
 
 function delCard(id) {
@@ -906,6 +1226,32 @@ function flash(id, msg, type='ok') {
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => el.classList.remove('show'), 4500);
 }
+
+/* ═══════════════════════════════════════════════════
+   PWA MANIFEST  (inline so the single HTML file is self-contained)
+═══════════════════════════════════════════════════ */
+(function() {
+    const manifest = {
+        name: 'SwissFlash',
+        short_name: 'SwissFlash',
+        description: 'German flashcards from what you see around you in Switzerland',
+        start_url: './',
+        display: 'standalone',
+        background_color: '#F5F5F0',
+        theme_color: '#C8102E',
+        icons: [{
+            src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23C8102E'/%3E%3Crect x='206' y='80' width='100' height='352' rx='20' fill='white'/%3E%3Crect x='80' y='206' width='352' height='100' rx='20' fill='white'/%3E%3C/svg%3E",
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+        }]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+})();
 
 /* ═══════════════════════════════════════════════════
    INIT
