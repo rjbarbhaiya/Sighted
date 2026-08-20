@@ -788,12 +788,33 @@ function onDrop(e) {
     if (f && f.type.startsWith('image/')) loadImg(f);
 }
 
+function resizeImage(dataUrl, mime, maxPx, cb) {
+    const img = new Image();
+    img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+            if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+            else       { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const resized = canvas.toDataURL('image/jpeg', 0.82);
+        cb(resized.split(',')[1], 'image/jpeg');
+    };
+    img.src = dataUrl;
+}
+
 function loadImg(file) {
     const reader = new FileReader();
     reader.onload = ev => {
         const url = ev.target.result;
         S.imgMime = file.type;
-        S.imgB64  = url.split(',')[1];
+        S.imgB64  = url.split(',')[1]; // temp full-size, replaced below
+        resizeImage(url, file.type, 1024, (b64, mime) => {
+            S.imgB64  = b64;
+            S.imgMime = mime;
+        });
         // show preview — insert before whichever element is visible first
         const old = document.querySelector('.preview-img');
         if (old) old.remove();
@@ -849,7 +870,7 @@ async function callClaude(imgB64, imgMime, text) {
         },
         body: JSON.stringify({
             model: S.model,
-            max_tokens: 2048,
+            max_tokens: 512,
             system: `You are a ${L.name} vocabulary assistant for an English speaker living in ${L.region}.
 
 Extract useful ${L.name} words or phrases from the provided image or text.
