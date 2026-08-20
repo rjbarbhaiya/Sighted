@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#C8102E">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="SwissFlash">
+    <meta name="apple-mobile-web-app-title" content="Sighted">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23C8102E'/%3E%3Crect x='72' y='28' width='36' height='124' rx='8' fill='white'/%3E%3Crect x='28' y='72' width='124' height='36' rx='8' fill='white'/%3E%3C/svg%3E">
-    <title>SwissFlash — German from Life</title>
+    <title>Sighted — Vocabulary from Life</title>
     <style>
         :root {
             --bg: #F5F5F0;
@@ -409,7 +409,7 @@
                 <rect x="2" y="8" width="16" height="4" rx="1"/>
             </svg>
         </div>
-        SwissFlash <span id="header-flag" style="font-size:16px;margin-left:2px">🇨🇭</span>
+        Sighted <span id="header-flag" style="font-size:16px;margin-left:2px">🇨🇭</span>
     </div>
     <nav>
         <button class="nav-btn active" id="nav-capture" onclick="go('capture')">📷 Capture</button>
@@ -501,7 +501,7 @@
     <div class="modal">
         <h2>Settings</h2>
         <p class="sub">
-            SwissFlash calls the Claude API directly from your browser.
+            Sighted calls the Claude API directly from your browser.
             Your API key is stored only in your browser's local storage, never sent anywhere else.
         </p>
 
@@ -568,7 +568,7 @@ const APP_PIN = '8799';
                     <rect x="2" y="8" width="16" height="4" rx="1"/>
                 </svg>
             </div>
-            <h1 style="font-size:22px;font-weight:800;color:#1A1A1A;margin-bottom:6px">SwissFlash</h1>
+            <h1 style="font-size:22px;font-weight:800;color:#1A1A1A;margin-bottom:6px">Sighted</h1>
             <p style="font-size:14px;color:#6B7280;margin-bottom:28px">Enter your PIN to continue</p>
 
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="pin-pad">
@@ -1164,21 +1164,21 @@ function renderDeck() {
     const due = visibleCards.filter(c => new Date(c.dueDate) <= now).length;
     const rot = visibleCards.filter(c => c.repetitions > 0).length;
 
-    // Language filter chips
-    const chips = langsWithCards.length > 1 ? `
+    // Language filter chips — always visible when there are cards
+    const chips = S.cards.length === 0 ? '' : `
         <div class="deck-filter">
+            <button class="df-chip${S.deckLang==='all'?' active':''}" onclick="filterDeck('all')">
+                All <span class="lang-badge">${S.cards.length}</span>
+            </button>
             ${langsWithCards.map(key => {
                 const L = LANGS[key] || { flag: '🌐', name: key };
                 const cnt = S.cards.filter(c => cardLang(c) === key).length;
-                const isActive = (S.deckLang === 'all' ? false : (S.deckLang || S.lang) === key);
+                const isActive = S.deckLang !== 'all' && (S.deckLang || S.lang) === key;
                 return `<button class="df-chip${isActive?' active':''}" onclick="filterDeck('${key}')">
                     ${L.flag} ${L.name} <span class="lang-badge">${cnt}</span>
                 </button>`;
             }).join('')}
-            <button class="df-chip${S.deckLang==='all'?' active':''}" onclick="filterDeck('all')">
-                All <span class="lang-badge">${S.cards.length}</span>
-            </button>
-        </div>` : '';
+        </div>`;
 
     let html = chips + `<div class="stats-grid">
         <div class="stat"><div class="stat-n">${tot}</div><div class="stat-l">Total cards</div></div>
@@ -1252,9 +1252,9 @@ function flash(id, msg, type='ok') {
 ═══════════════════════════════════════════════════ */
 (function() {
     const manifest = {
-        name: 'SwissFlash',
-        short_name: 'SwissFlash',
-        description: 'German flashcards from what you see around you in Switzerland',
+        name: 'Sighted',
+        short_name: 'Sighted',
+        description: 'Vocabulary flashcards from what you see around you',
         start_url: './',
         display: 'standalone',
         background_color: '#F5F5F0',
