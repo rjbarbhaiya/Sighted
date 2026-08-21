@@ -1098,11 +1098,15 @@ function renderStudy() {
     if (!due.length) {
         const next = langCards.reduce((a,b) => new Date(a.dueDate)<new Date(b.dueDate)?a:b);
         const hrs  = Math.ceil((new Date(next.dueDate)-new Date()) / 36e5);
+        const nextStr = hrs < 24 ? hrs + ' hours' : Math.ceil(hrs/24) + ' days';
         el.innerHTML = `<div class="empty">
-            <div class="emoji">✅</div>
+            <div class="emoji">🎉</div>
             <h3>All caught up!</h3>
-            <p>Next ${L.name} review in ${hrs<24?hrs+' hours':Math.ceil(hrs/24)+' days'}.</p>
-            <button class="btn btn-primary" onclick="go('capture')" style="display:inline-flex;width:auto">Add more cards</button>
+            <p>Next scheduled review in ${nextStr}.</p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+                <button class="btn btn-primary" onclick="startOver()" style="display:inline-flex;width:auto">🔁 Study all anyway</button>
+                <button class="btn" onclick="go('capture')" style="display:inline-flex;width:auto;border:1.5px solid var(--border)">Add more cards</button>
+            </div>
         </div>`; return;
     }
     S.queue   = [...due];
