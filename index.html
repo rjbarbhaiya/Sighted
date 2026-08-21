@@ -1117,8 +1117,11 @@ function drawCard() {
         el.innerHTML = `<div class="empty">
             <div class="emoji">🎉</div>
             <h3>Session complete!</h3>
-            <p>You reviewed ${S.queue.length} card${S.queue.length!==1?'s':''}. Gut gemacht!</p>
-            <button class="btn btn-primary" onclick="renderStudy()" style="display:inline-flex;width:auto">Done</button>
+            <p>You reviewed ${S.queue.length} card${S.queue.length!==1?'s':''}.</p>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+                <button class="btn btn-primary" onclick="startOver()" style="display:inline-flex;width:auto">🔁 Start over</button>
+                <button class="btn" onclick="go('deck')" style="display:inline-flex;width:auto;border:1.5px solid var(--border)">View deck</button>
+            </div>
         </div>`; return;
     }
     const c    = S.queue[S.qi];
@@ -1161,6 +1164,13 @@ function drawCard() {
 }
 
 function flip() { S.flipped = !S.flipped; drawCard(); }
+
+function startOver() {
+    const all = S.cards.filter(c => cardLang(c) === S.lang);
+    S.queue = all.slice().sort(() => Math.random() - 0.5);
+    S.qi = 0; S.flipped = false;
+    drawCard();
+}
 
 function rate(r) {
     const c = S.queue[S.qi];
